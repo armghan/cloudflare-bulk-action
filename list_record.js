@@ -1,27 +1,46 @@
+require('dotenv').config();
 const axios = require('axios');
 const fs = require('fs');
 
-// Cloudflare API credentials
-const EMAIL = 'armughan@example.com'; // Your Cloudflare account email
-const API_KEY = 'hxuhwihc783y8y4fy3789yfi3ruiyfgh843fedd4'; // Your Cloudflare API key
-const ZONE_ID = 'hbchwdbicxbciwdbbchbw4848938duh883479'; // Your Cloudflare Zone ID
-
-
+// Read Cloudflare API credentials from environment variables
+const EMAIL = process.env.CLOUDFLARE_EMAIL;
+const API_KEY = process.env.CLOUDFLARE_API_KEY;
+const ZONE_ID = process.env.CLOUDFLARE_ZONE_ID;
 
 // Function to fetch all DNS records
 async function getAllRecords() {
     const url = `https://api.cloudflare.com/client/v4/zones/${ZONE_ID}/dns_records`;
 
-    try {
-        const response = await axios.get(url, {
-            headers: {
-                'X-Auth-Email': EMAIL,
-                'X-Auth-Key': API_KEY,
-                'Content-Type': 'application/json',
-            },
-        });
+    let page = 1;
+    const perPage = 100; // Maximum records per page
+    let allRecords = [];
 
-        return response.data.result;
+    try {
+        while (true) {
+            const response = await axios.get(url, {
+                params: {
+                    page: page,
+                    per_page: perPage,
+                },
+                headers: {
+                    'X-Auth-Email': EMAIL,
+                    'X-Auth-Key': API_KEY,
+                    'Content-Type': 'application/json',
+                },
+            });
+
+            const records = response.data.result;
+            allRecords = allRecords.concat(records);
+
+            // If the number of records fetched is less than the maximum per page, we've reached the end
+            if (records.length < perPage) {
+                break;
+            }
+
+            page++;
+        }
+
+        return allRecords;
     } catch (error) {
         console.error('Error fetching DNS records:', error.message);
         return null;
